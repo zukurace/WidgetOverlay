@@ -10,16 +10,31 @@ static const FName matrixRowNames[] = {
     TEXT("ViewProjectionMatrixRow3"),
 };
 
+void UOverlayWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // In our case the object created before this widget.
+    // On widget construction it iterates all objects with tag "Target".
+    // Warning: object can be created after our widget, so we should subscribe to actor creation delegate
+    TArray<AActor*> taggedActors;
+    UGameplayStatics::GetAllActorsWithTag(GetWorld(), TEXT("Target"), taggedActors);
+    m_targetActor = taggedActors.Num() ? taggedActors[0] : nullptr;
+}
+
 void UOverlayWidget::UpdateOverlay()
 {
     bool draw = false;
     ON_SCOPE_EXIT->void
-    {
+    { // the code inside executes when scope exit '}' and on 'return' statement
         m_imageOverlay->SetVisibility(draw ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
     };
 
+    if (!m_targetActor.IsValid() || !m_imageOverlay)
+        return;
+
     const APlayerController* player = GetOwningPlayer();
-    if (!player || !m_imageOverlay)
+    if (!player)
         return;
 
     FSceneViewProjectionData ProjectionData;
@@ -37,7 +52,13 @@ void UOverlayWidget::UpdateOverlay()
     FMatrix viewMatrixInverse = ProjectionData.ViewRotationMatrix.Inverse();
     viewMatrixInverse.SetOrigin(ProjectionData.ViewOrigin);
 
-    FMatrix modelMatrixInverse = FMatrix::Identity; // it does nothing for now, object is in the world origin
+    FTransform targetTransform = m_targetActor->GetTransform();
+    targetTransform.SetScale3D(FVector(1, 1, .3)); // check non-uniform scale
+
+    // correct non-uniform scale
+    FMatrix modelMatrixInverse = targetTransform.ToMatrixWithScale().Inverse();
+    // faster, but wrong with non-uniform scale
+    // FMatrix modelMatrixInverse = targetTransform.Inverse().ToMatrixWithScale();
 
     FMatrix pvm = projectionInverse * viewMatrixInverse * modelMatrixInverse;
 

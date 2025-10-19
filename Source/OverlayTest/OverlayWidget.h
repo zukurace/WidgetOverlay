@@ -15,6 +15,11 @@ protected:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UImage* m_imageOverlay;
 
+    TWeakObjectPtr<AActor> m_targetActor;
+
+protected:
+    void NativeConstruct() override;
+
 public:
     UFUNCTION(BlueprintCallable)
     void UpdateOverlay();
