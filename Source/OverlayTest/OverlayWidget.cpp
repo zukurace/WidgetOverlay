@@ -1,6 +1,7 @@
 
 #include "OverlayWidget.h"
 #include "Components/Image.h"
+#include "Kismet/GameplayStatics.h"
 
 static const FName matrixRowNames[] = {
     TEXT("ViewProjectionMatrixRow0"),
@@ -11,22 +12,25 @@ static const FName matrixRowNames[] = {
 
 void UOverlayWidget::UpdateOverlay()
 {
+    bool draw = false;
+    ON_SCOPE_EXIT->void
+    {
+        m_imageOverlay->SetVisibility(draw ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+    };
+
     const APlayerController* player = GetOwningPlayer();
-
-    auto dynamicMaterial = m_imageOverlay->GetDynamicMaterial();
-
-    if (!player || !dynamicMaterial) {
-        m_imageOverlay->SetVisibility(ESlateVisibility::Hidden);
+    if (!player || !m_imageOverlay)
         return;
-    }
 
     FSceneViewProjectionData ProjectionData;
     ULocalPlayer* const LP = player->GetLocalPlayer();
 
-    if (!(LP && LP->ViewportClient && LP->GetProjectionData(LP->ViewportClient->Viewport, ProjectionData))) {
-        m_imageOverlay->SetVisibility(ESlateVisibility::Hidden);
+    if (!(LP && LP->ViewportClient && LP->GetProjectionData(LP->ViewportClient->Viewport, ProjectionData)))
         return;
-    }
+
+    auto dynamicMaterial = m_imageOverlay->GetDynamicMaterial();
+    if (!dynamicMaterial)
+        return;
 
     FMatrix projectionInverse = ProjectionData.ProjectionMatrix.Inverse();
 
@@ -46,5 +50,5 @@ void UOverlayWidget::UpdateOverlay()
         GEngine->AddOnScreenDebugMessage(size_t(this), .1f, FColor::Red, pvm.ToString(), true);
     }
 
-    m_imageOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
+    draw = true;
 }
