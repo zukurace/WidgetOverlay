@@ -1,5 +1,7 @@
 
 #include "OverlayWidget.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -30,7 +32,7 @@ void UOverlayWidget::UpdateOverlay()
         m_imageOverlay->SetVisibility(draw ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
     };
 
-    if (!m_targetActor.IsValid() || !m_imageOverlay)
+    if (!m_targetActor.IsValid() || !m_imageOverlay || !m_canvasRoot)
         return;
 
     const APlayerController* player = GetOwningPlayer();
@@ -46,6 +48,14 @@ void UOverlayWidget::UpdateOverlay()
     auto dynamicMaterial = m_imageOverlay->GetDynamicMaterial();
     if (!dynamicMaterial)
         return;
+
+    auto canvasSlot = Cast<UCanvasPanelSlot>(m_imageOverlay->Slot);
+    if (!canvasSlot)
+        return;
+
+    // TODO: calculate position and size
+    canvasSlot->SetPosition(FVector2D(200, 200));
+    canvasSlot->SetSize(FVector2D(200, 200));
 
     FMatrix projectionInverse = ProjectionData.ProjectionMatrix.Inverse();
 
