@@ -77,6 +77,8 @@ void UOverlayWidget::UpdateOverlay()
         FVector2D screenNormalizedPos(((FVector)projectedVertex) / projectedVertex.W);
         minB = FVector2D::Min(minB, screenNormalizedPos);
         maxB = FVector2D::Max(maxB, screenNormalizedPos);
+
+        DrawDebugPoint(GetWorld(), targetTransform.TransformPosition(localBounds[i]), 30, FColor::Red, 0, 0.f, 1);
     }
 
     minB = minB.ClampAxes(-1, 1); // clamp in range (-1, 1)
