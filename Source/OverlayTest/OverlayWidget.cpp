@@ -53,32 +53,25 @@ void UOverlayWidget::UpdateOverlay()
     if (!canvasSlot)
         return;
 
-    // TODO: calculate position and size
-    canvasSlot->SetPosition(FVector2D(200, 200));
-    canvasSlot->SetSize(FVector2D(200, 200));
-
-    FMatrix projectionInverse = ProjectionData.ProjectionMatrix.Inverse();
-
-    FMatrix viewMatrixInverse = ProjectionData.ViewRotationMatrix.Inverse();
-    viewMatrixInverse.SetOrigin(ProjectionData.ViewOrigin);
-
     FTransform targetTransform = m_targetActor->GetTransform();
-    targetTransform.SetScale3D(FVector(1, 1, .3)); // check non-uniform scale
+    targetTransform.SetScale3D(FVector(1, 1, .3));
 
-    // correct non-uniform scale
-    FMatrix modelMatrixInverse = targetTransform.ToMatrixWithScale().Inverse();
-    // faster, but wrong with non-uniform scale
-    // FMatrix modelMatrixInverse = targetTransform.Inverse().ToMatrixWithScale();
+    const FMatrix model = targetTransform.ToMatrixWithScale();
+    const FMatrix view = FTranslationMatrix(-ProjectionData.ViewOrigin) * ProjectionData.ViewRotationMatrix;
+    const FMatrix proj = ProjectionData.ProjectionMatrix;
 
-    FMatrix pvm = projectionInverse * viewMatrixInverse * modelMatrixInverse;
+    const FMatrix MVP = model * view * proj; // to place widget on screen
+
+    //// TODO: calculate position and size from MVP matrix
+    // canvasSlot->SetPosition(CALCULATE POSITION);
+    // canvasSlot->SetSize(CALCULATE SIZE);
+    // if(OUT OF SCREEN BOUNDS) { draw = false; return; }
+
+    const FMatrix PVM = MVP.Inverse(); // to convert screen space UV to model-space rays
 
     for (int i = 0; i < 4; ++i) {
         dynamicMaterial->SetVectorParameterValue(matrixRowNames[i],
-            FLinearColor(pvm.M[i][0], pvm.M[i][1], pvm.M[i][2], pvm.M[i][3]));
-    }
-
-    if (GEngine) {
-        GEngine->AddOnScreenDebugMessage(size_t(this), .1f, FColor::Red, pvm.ToString(), true);
+            FLinearColor(PVM.M[i][0], PVM.M[i][1], PVM.M[i][2], PVM.M[i][3]));
     }
 
     draw = true;
