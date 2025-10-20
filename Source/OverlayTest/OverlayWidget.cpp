@@ -62,20 +62,42 @@ void UOverlayWidget::UpdateOverlay()
 
     const FMatrix MVP = model * view * proj; // to place widget on screen
 
-    // Placing widget
-    FVector localPointOfModel = FVector::ZeroVector; // reproject the center of the object
-    const FVector4& projectedVertex = MVP.TransformPosition(localPointOfModel);
+    constexpr float ext = 100.f;
+    static FVector localBounds[8] = {
+        FVector(-ext, -ext, -ext), FVector(-ext, -ext, ext), FVector(-ext, ext, -ext), FVector(-ext, ext, ext),
+        FVector(ext, -ext, -ext), FVector(ext, -ext, ext), FVector(ext, ext, -ext), FVector(ext, ext, ext)
+    };
 
-    if (projectedVertex.W <= 0) // if point is behind the camera -> exit
+    FVector2D minB(1, 1), maxB(-1, -1);
+
+    for (int i = 0; i < 8; ++i) {
+        const FVector4& projectedVertex = MVP.TransformPosition(localBounds[i]);
+        if (projectedVertex.W <= 0)
+            continue;
+        FVector2D screenNormalizedPos(((FVector)projectedVertex) / projectedVertex.W);
+        minB = FVector2D::Min(minB, screenNormalizedPos);
+        maxB = FVector2D::Max(maxB, screenNormalizedPos);
+    }
+
+    minB = minB.ClampAxes(-1, 1); // clamp in range (-1, 1)
+    maxB = maxB.ClampAxes(-1, 1);
+
+    FVector2D normalizedSize = maxB - minB;
+    if (normalizedSize.X <= 0 || normalizedSize.Y <= 0) {
+        if (GEngine)
+            GEngine->AddOnScreenDebugMessage(0, 0, FColor::Red, TEXT("Invisible"), true, FVector2D(2));
         return;
+    }
 
-    FVector2D screenNormalizedPos(((FVector)projectedVertex) / projectedVertex.W);
-    screenNormalizedPos = screenNormalizedPos * FVector2D(0.5, -0.5) + 0.5;
+    normalizedSize *= 0.5;
+    minB = minB * FVector2D(0.5, -0.5) + 0.5; // normalize to canvas (0 .. 1)
+    maxB = maxB * FVector2D(0.5, -0.5) + 0.5;
+    minB = FVector2D(minB.X, maxB.Y); // as we inversed by Y we should swap Y component
+    maxB = FVector2D(maxB.X, minB.Y);
 
     FVector2D canvasSize(m_canvasRoot->GetCachedGeometry().GetLocalSize()); // full screen canvas size
-
-    canvasSlot->SetPosition(canvasSize * screenNormalizedPos);
-    canvasSlot->SetSize(FVector2D(200)); //
+    canvasSlot->SetPosition(canvasSize * minB);
+    canvasSlot->SetSize(canvasSize * normalizedSize);
 
     // Prepare data for shader
     const FMatrix PVM = MVP.Inverse(); // to convert screen space UV to model-space rays
