@@ -62,11 +62,22 @@ void UOverlayWidget::UpdateOverlay()
 
     const FMatrix MVP = model * view * proj; // to place widget on screen
 
-    //// TODO: calculate position and size from MVP matrix
-    // canvasSlot->SetPosition(CALCULATE POSITION);
-    // canvasSlot->SetSize(CALCULATE SIZE);
-    // if(OUT OF SCREEN BOUNDS) { draw = false; return; }
+    // Placing widget
+    FVector localPointOfModel = FVector::ZeroVector; // reproject the center of the object
+    const FVector4& projectedVertex = MVP.TransformPosition(localPointOfModel);
 
+    if (projectedVertex.W <= 0) // if point is behind the camera -> exit
+        return;
+
+    FVector2D screenNormalizedPos(((FVector)projectedVertex) / projectedVertex.W);
+    screenNormalizedPos = screenNormalizedPos * FVector2D(0.5, -0.5) + 0.5;
+
+    FVector2D canvasSize(m_canvasRoot->GetCachedGeometry().GetLocalSize()); // full screen canvas size
+
+    canvasSlot->SetPosition(canvasSize * screenNormalizedPos);
+    canvasSlot->SetSize(FVector2D(200)); //
+
+    // Prepare data for shader
     const FMatrix PVM = MVP.Inverse(); // to convert screen space UV to model-space rays
 
     for (int i = 0; i < 4; ++i) {
