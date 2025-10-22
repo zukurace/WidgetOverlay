@@ -63,28 +63,28 @@ void UOverlayWidget::UpdateOverlay()
     const FMatrix MVP = model * view * proj; // to place widget on screen
 
     constexpr float ext = 100.f;
-    static FVector localBounds[8] = {
+    static FVector modelBounds[8] = {
         FVector(-ext, -ext, -ext), FVector(-ext, -ext, ext), FVector(-ext, ext, -ext), FVector(-ext, ext, ext),
         FVector(ext, -ext, -ext), FVector(ext, -ext, ext), FVector(ext, ext, -ext), FVector(ext, ext, ext)
     };
 
-    FVector2D minB(1, 1), maxB(-1, -1);
+    FVector2D ssbbMin(1, 1), ssbbMax(-1, -1);
 
     for (int i = 0; i < 8; ++i) {
-        const FVector4& projectedVertex = MVP.TransformPosition(localBounds[i]);
+        const FVector4& projectedVertex = MVP.TransformPosition(modelBounds[i]);
         if (projectedVertex.W <= 0)
             continue;
         FVector2D screenNormalizedPos(((FVector)projectedVertex) / projectedVertex.W);
-        minB = FVector2D::Min(minB, screenNormalizedPos);
-        maxB = FVector2D::Max(maxB, screenNormalizedPos);
+        ssbbMin = FVector2D::Min(ssbbMin, screenNormalizedPos);
+        ssbbMax = FVector2D::Max(ssbbMax, screenNormalizedPos);
 
-        DrawDebugPoint(GetWorld(), targetTransform.TransformPosition(localBounds[i]), 30, FColor::Red, 0, 0.f, 1);
+        DrawDebugPoint(GetWorld(), targetTransform.TransformPosition(modelBounds[i]), 30, FColor::Red, 0, 0.f, 1);
     }
 
-    minB = minB.ClampAxes(-1, 1); // clamp in range (-1, 1)
-    maxB = maxB.ClampAxes(-1, 1);
+    ssbbMin = ssbbMin.ClampAxes(-1, 1); // clamp in range (-1, 1)
+    ssbbMax = ssbbMax.ClampAxes(-1, 1);
 
-    FVector2D normalizedSize = maxB - minB;
+    FVector2D normalizedSize = ssbbMax - ssbbMin;
     if (normalizedSize.X <= 0 || normalizedSize.Y <= 0) {
         if (GEngine)
             GEngine->AddOnScreenDebugMessage(0, 0, FColor::Red, TEXT("Invisible"), true, FVector2D(2));
@@ -92,13 +92,13 @@ void UOverlayWidget::UpdateOverlay()
     }
 
     normalizedSize *= 0.5;
-    minB = minB * FVector2D(0.5, -0.5) + 0.5; // normalize to canvas (0 .. 1)
-    maxB = maxB * FVector2D(0.5, -0.5) + 0.5;
-    minB = FVector2D(minB.X, maxB.Y); // as we inversed by Y we should swap Y component
-    maxB = FVector2D(maxB.X, minB.Y);
+    ssbbMin = ssbbMin * FVector2D(0.5, -0.5) + 0.5; // normalize to canvas (0 .. 1)
+    ssbbMax = ssbbMax * FVector2D(0.5, -0.5) + 0.5;
+    ssbbMin = FVector2D(ssbbMin.X, ssbbMax.Y); // as we inversed by Y we should swap Y component
+    ssbbMax = FVector2D(ssbbMax.X, ssbbMin.Y);
 
     FVector2D canvasSize(m_canvasRoot->GetCachedGeometry().GetLocalSize()); // full screen canvas size
-    canvasSlot->SetPosition(canvasSize * minB);
+    canvasSlot->SetPosition(canvasSize * ssbbMin);
     canvasSlot->SetSize(canvasSize * normalizedSize);
 
     // Prepare data for shader
