@@ -62,23 +62,21 @@ void UOverlayWidget::UpdateOverlay()
 
     const FMatrix MVP = model * view * proj; // to place widget on screen
 
-    constexpr float ext = 100.f;
-    static FVector modelBounds[8] = {
-        FVector(-ext, -ext, -ext), FVector(-ext, -ext, ext), FVector(-ext, ext, -ext), FVector(-ext, ext, ext),
-        FVector(ext, -ext, -ext), FVector(ext, -ext, ext), FVector(ext, ext, -ext), FVector(ext, ext, ext)
-    };
-
+    FVector bMin(-100), bMax(100); // opposite bbox corners of the model
     FVector2D ssbbMin(1, 1), ssbbMax(-1, -1);
 
     for (int i = 0; i < 8; ++i) {
-        const FVector4& projectedVertex = MVP.TransformPosition(modelBounds[i]);
+        // iterating over each vertex of bounding box using small bitfield trick
+        const FVector currentVertex((i & 1) ? bMin.X : bMax.X, (i & 2) ? bMin.Y : bMax.Y, (i & 4) ? bMin.Z : bMax.Z);
+        const FVector4& projectedVertex = MVP.TransformPosition(currentVertex);
+
         if (projectedVertex.W <= 0)
             continue;
         FVector2D screenNormalizedPos(((FVector)projectedVertex) / projectedVertex.W);
         ssbbMin = FVector2D::Min(ssbbMin, screenNormalizedPos);
         ssbbMax = FVector2D::Max(ssbbMax, screenNormalizedPos);
 
-        DrawDebugPoint(GetWorld(), targetTransform.TransformPosition(modelBounds[i]), 30, FColor::Red, 0, 0.f, 1);
+        DrawDebugPoint(GetWorld(), targetTransform.TransformPosition(currentVertex), 30, FColor::Red, 0, 0.f, 1);
     }
 
     ssbbMin = ssbbMin.ClampAxes(-1, 1); // clamp in range (-1, 1)
